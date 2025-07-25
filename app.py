@@ -14,6 +14,7 @@ from PIL import Image
 import qrcode
 from xgboost import XGBClassifier
 import shap
+from sklearn.model_selection import GridSearchCV
 
 # Page configuration
 st.set_page_config(page_title="Diabetes Predictor", layout="wide", initial_sidebar_state="expanded")
