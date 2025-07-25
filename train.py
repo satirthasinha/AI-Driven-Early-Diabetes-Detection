@@ -163,7 +163,7 @@ plt.savefig('backend/plots/shap_dependence_glucose.png', bbox_inches='tight', dp
 plt.close()
 
 # =================== Save Artifacts ===================
-joblib.dump(best_model, 'backend/models/xgb_model.pkl')
+joblib.dump(grid.best_estimator_, 'backend/models/xgb_model.pkl')  # ✅ Correct
 joblib.dump(scaler, 'backend/models/scaler.pkl')
 # Optional: Uncomment to save SHAP explainer if needed later
 joblib.dump(explainer, 'backend/models/shap_explainer.pkl')
