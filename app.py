@@ -1,4 +1,4 @@
-from weasyprint import HTML
+from xhtml2pdf import pisa
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -12,6 +12,8 @@ import uuid
 import csv
 from PIL import Image
 import qrcode
+from xgboost import XGBClassifier
+import shap
 
 # Page configuration
 st.set_page_config(page_title="Diabetes Predictor", layout="wide", initial_sidebar_state="expanded")
@@ -120,11 +122,14 @@ LANGS = {
 # Load your trained models
 SCALER_PATH = "backend/models/scaler.pkl"
 MODEL_PATH = "backend/models/xgb_model.pkl"
-EXPLAINER_PATH = "backend/models/shap_explainer.pkl"
 
 scaler = joblib.load(SCALER_PATH)
 model = joblib.load(MODEL_PATH)
-explainer = joblib.load(EXPLAINER_PATH)
+
+# Create SHAP explainer at runtime — DO NOT LOAD FROM FILE
+explainer = shap.Explainer(model)
+
+
 
 # Language selection
 lang_code = st.sidebar.selectbox("🌐 " + LANGS["en"]["language_label"], options=["en", "bn"], index=0)
@@ -141,39 +146,21 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
     filename = f"{report_id}_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     filepath = os.path.join("reports", filename)
 
-    # Localized labels
-    if lang == "bn":
-        pdf_labels = {
-            "title": "ডায়াবেটিস ঝুঁকি পূর্বাভাস",
-            "report_id": "রিপোর্ট আইডি",
-            "date": "তারিখ",
-            "name": "রোগীর নাম",
-            "age": "বয়স",
-            "gender": "লিঙ্গ",
-            "input_section": "রোগীর ইনপুট তথ্য",
-            "risk": "ডায়াবেটিস ঝুঁকি",
-            "summary": "QR স্ক্যান করে রিপোর্ট দেখুন",
-            "top_factors": "শীর্ষ ঝুঁকির কারণ",
-            "feature": "ফিচার",
-            "impact": "প্রভাব (%)",
-            "qr_note": "(রোগীর ইনপুট এবং ঝুঁকি তথ্য অন্তর্ভুক্ত)"
-        }
-    else:
-        pdf_labels = {
-            "title": "Diabetes Risk Predictor",
-            "report_id": "Report ID",
-            "date": "Date",
-            "name": "Patient Name",
-            "age": "Age",
-            "gender": "Gender",
-            "input_section": "Patient Input Data",
-            "risk": "Diabetes Risk",
-            "summary": "Scan QR to View Patient Summary",
-            "top_factors": "Top Risk Factors",
-            "feature": "Feature",
-            "impact": "Impact (%)",
-            "qr_note": "(Includes name, age, gender, inputs, and risk)"
-        }
+    pdf_labels = {
+        "title": "Diabetes Risk Predictor" if lang == "en" else "ডায়াবেটিস ঝুঁকি পূর্বাভাস",
+        "report_id": "Report ID" if lang == "en" else "রিপোর্ট আইডি",
+        "date": "Date" if lang == "en" else "তারিখ",
+        "name": "Patient Name" if lang == "en" else "রোগীর নাম",
+        "age": "Age" if lang == "en" else "বয়স",
+        "gender": "Gender" if lang == "en" else "লিঙ্গ",
+        "input_section": "Patient Input Data" if lang == "en" else "রোগীর ইনপুট তথ্য",
+        "risk": "Diabetes Risk" if lang == "en" else "ডায়াবেটিস ঝুঁকি",
+        "summary": "Scan QR to View Patient Summary" if lang == "en" else "QR স্ক্যান করে রিপোর্ট দেখুন",
+        "top_factors": "Top Risk Factors" if lang == "en" else "শীর্ষ ঝুঁকির কারণ",
+        "feature": "Feature" if lang == "en" else "ফিচার",
+        "impact": "Impact (%)" if lang == "en" else "প্রভাব (%)",
+        "qr_note": "(Includes name, age, gender, inputs, and risk)" if lang == "en" else "(রোগীর ইনপুট এবং ঝুঁকি তথ্য অন্তর্ভুক্ত)"
+    }
 
     patient_name = data.get("Patient_Name", "N/A")
     patient_age = data.get("Patient_Age", "N/A")
@@ -182,6 +169,7 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
     risk_percent = int(round(prediction_result.get("risk_percent", 0) * 100))
     risk_text = LANGS[lang]["risk_high"] if prediction_result['prediction'] == 1 else LANGS[lang]["risk_low"]
 
+    # Create QR text
     qr_text = f"{pdf_labels['report_id']}: {report_id}\n{pdf_labels['name']}: {patient_name}\n{pdf_labels['age']}: {patient_age}\n{pdf_labels['gender']}: {patient_gender}\n{pdf_labels['date']}: {test_date}\n{pdf_labels['risk']}: {risk_percent}% - {risk_text}\n"
     for k, v in data.items():
         if k.startswith("BMI_Category") and v:
@@ -213,112 +201,75 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
         for f in top_features
     ])
 
-    font_family = "'Noto Sans Bengali', 'Noto Sans', 'DejaVu Sans', sans-serif"
-
     html_content = f"""
     <html lang="{lang}">
     <head>
         <meta charset="utf-8">
         <style>
-            @font-face {{
-                font-family: 'Noto Sans Bengali';
-                src: url('fonts/NotoSansBengali-Regular.ttf') format('truetype');
-            }}
             body {{
-                font-family: {font_family};
-                background-color: #fdfdfd;
-                color: #222;
+                font-family: sans-serif;
                 margin: 40px;
                 line-height: 1.6;
+                color: #222;
             }}
             h1 {{
                 text-align: center;
-                font-size: 28px;
-                color: #2c3e50;
-                margin-bottom: 10px;
+                font-size: 24px;
             }}
             .header-line {{
                 text-align: center;
-                font-size: 14px;
-                color: #888;
                 margin-bottom: 30px;
             }}
-            .patient-info {{
-                background-color: #f2f6fc;
-                padding: 15px 20px;
-                border-left: 5px solid #2c3e50;
+            .info {{
+                padding: 10px;
                 margin-bottom: 20px;
-                border-radius: 5px;
-            }}
-            .patient-info p {{
-                margin: 4px 0;
-                font-size: 16px;
+                background-color: #eef;
             }}
             table {{
                 width: 100%;
                 border-collapse: collapse;
                 margin-top: 10px;
-                font-size: 15px;
             }}
             th, td {{
                 border: 1px solid #ccc;
-                padding: 10px;
+                padding: 8px;
                 text-align: left;
             }}
-            th {{
-                background-color: #eaf2fb;
-                color: #000;
-            }}
             .risk {{
-                background-color: #fff2cc;
-                padding: 12px;
+                background-color: #fff3cd;
+                padding: 10px;
                 font-weight: bold;
-                font-size: 18px;
-                margin: 20px 0;
-                border-left: 6px solid #f39c12;
-                border-radius: 5px;
-            }}
-            .section-title {{
-                font-size: 20px;
-                margin-top: 30px;
-                color: #2c3e50;
-                border-bottom: 2px solid #e2e6ea;
-                padding-bottom: 6px;
-            }}
-            .qr-code {{
-                margin-top: 40px;
-                text-align: center;
+                margin-top: 20px;
             }}
             .qr-note {{
-                font-size: 13px;
-                color: #666;
-                margin-top: 8px;
+                font-size: 12px;
+                text-align: center;
+                margin-top: 10px;
             }}
         </style>
     </head>
     <body>
         <h1>{pdf_labels['title']}</h1>
-        <div class="header-line">{pdf_labels['report_id']}: <strong>{report_id}</strong> | {pdf_labels['date']}: <strong>{test_date}</strong></div>
-
-        <div class="patient-info">
-            <p><strong>👤 {pdf_labels['name']}:</strong> {patient_name}</p>
-            <p><strong>🎂 {pdf_labels['age']}:</strong> {patient_age}</p>
-            <p><strong>⚥ {pdf_labels['gender']}:</strong> {patient_gender}</p>
+        <div class="header-line">{pdf_labels['report_id']}: {report_id} | {pdf_labels['date']}: {test_date}</div>
+        <div class="info">
+            <p><strong>{pdf_labels['name']}:</strong> {patient_name}</p>
+            <p><strong>{pdf_labels['age']}:</strong> {patient_age}</p>
+            <p><strong>{pdf_labels['gender']}:</strong> {patient_gender}</p>
         </div>
 
-        <div class="section-title">🩺 {pdf_labels['input_section']}</div>
+        <h2>{pdf_labels['input_section']}</h2>
         <table>{rows}</table>
 
         <div class="risk">📊 {pdf_labels['risk']}: {risk_percent}% — {risk_text}</div>
 
-        <div class="section-title">🔥 {pdf_labels['top_factors']}</div>
+        <h2>{pdf_labels['top_factors']}</h2>
         <table>
             <tr><th>{pdf_labels['feature']}</th><th>{pdf_labels['impact']}</th></tr>
             {factors}
         </table>
 
         <div class="qr-code">
-            <p><strong>{pdf_labels['summary']}</strong></p>
+            <p style="text-align:center;"><strong>{pdf_labels['summary']}</strong></p>
             {qr_image_tag}
             <p class="qr-note">{pdf_labels['qr_note']}</p>
         </div>
@@ -326,8 +277,11 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
     </html>
     """
 
-    HTML(string=html_content).write_pdf(filepath)
+    # Use xhtml2pdf instead of WeasyPrint
+    with open(filepath, "wb") as f:
+        pisa.CreatePDF(html_content, dest=f)
 
+    # Log
     csv_path = "reports/report_log.csv"
     write_header = not os.path.exists(csv_path)
     with open(csv_path, "a", newline="", encoding="utf-8") as f:
@@ -340,6 +294,7 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
         os.remove(qr_path)
 
     return filepath
+
 
 
 def download_link(filename):
