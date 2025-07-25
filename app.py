@@ -182,7 +182,15 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
 
     with open(qr_path, "rb") as qr_file:
         qr_base64 = base64.b64encode(qr_file.read()).decode("utf-8")
-    qr_image_tag = f'''<img src="data:image/png;base64,{qr_base64}" style="display:block; margin:auto; width:120px;" alt="QR Code">'''
+    qr_image_tag = f'''
+    <table style="margin-left:auto; margin-right:auto; margin-top:10px;">
+      <tr>
+        <td style="text-align:center;">
+          <img src="data:image/png;base64,{qr_base64}" width="120" alt="QR Code">
+        </td>
+      </tr>
+    </table>
+    '''
 
     rows = ""
     for k, v in data.items():
@@ -243,7 +251,7 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
             .qr-note {{
                 font-size: 12px;
                 text-align: center;
-                margin-top: 10px;
+                margin-top: 5px;
             }}
         </style>
     </head>
@@ -276,11 +284,11 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
     </html>
     """
 
-    # Use xhtml2pdf instead of WeasyPrint
+    # Use xhtml2pdf to create the PDF
     with open(filepath, "wb") as f:
         pisa.CreatePDF(html_content, dest=f)
 
-    # Log
+    # Logging to CSV
     csv_path = "reports/report_log.csv"
     write_header = not os.path.exists(csv_path)
     with open(csv_path, "a", newline="", encoding="utf-8") as f:
@@ -289,6 +297,7 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
             writer.writerow(["Report_ID", "Date", "Name", "Age", "Gender", "Risk (%)", "Risk_Text"])
         writer.writerow([report_id, test_date, patient_name, patient_age, patient_gender, risk_percent, risk_text])
 
+    # Cleanup
     if os.path.exists(qr_path):
         os.remove(qr_path)
 
