@@ -139,13 +139,6 @@ for key in ['prediction_result', 'top_features', 'inputs']:
     if key not in st.session_state:
         st.session_state[key] = None
 
-import os
-import uuid
-import datetime
-import qrcode
-import base64
-import csv
-from xhtml2pdf import pisa
 
 def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabetes Risk Predictor"):
     os.makedirs("reports", exist_ok=True)
@@ -282,7 +275,7 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
         <table>{rows}</table>
 
         <div class="risk">
-            <span class="block-label">📊 {pdf_labels['risk']}:</span> {risk_percent}% — {risk_text}
+            <span class="block-label">{pdf_labels['risk']}:</span> {risk_percent}% — {risk_text}
         </div>
 
         <h2>{pdf_labels['top_factors']}</h2>
