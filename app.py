@@ -123,7 +123,8 @@ MODEL_PATH = "backend/models/xgb_model.pkl"
 EXPLAINER_PATH = "backend/models/shap_explainer.pkl"
 
 scaler = joblib.load(SCALER_PATH)
-model = joblib.load(MODEL_PATH)
+loaded_model = joblib.load(MODEL_PATH)
+model = getattr(loaded_model, "model", loaded_model)  # Automatically unwrap if needed
 explainer = joblib.load(EXPLAINER_PATH)
 
 # Language selection
