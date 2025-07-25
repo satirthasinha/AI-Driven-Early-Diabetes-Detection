@@ -201,7 +201,7 @@ plt.savefig('backend/plots/shap_dependence_glucose.png', bbox_inches='tight', dp
 plt.close()
 
 # =================== Save Trained Objects ===================
-joblib.dump(grid.best_estimator_, 'backend/models/xgb_model.pkl')
+joblib.dump(grid.best_estimator_.model, 'backend/models/xgb_model.pkl')  # ✅ Only save XGBClassifier
 joblib.dump(scaler, 'backend/models/scaler.pkl')
 joblib.dump(explainer, 'backend/models/shap_explainer.pkl')
 
