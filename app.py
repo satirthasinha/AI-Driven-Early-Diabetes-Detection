@@ -139,6 +139,14 @@ for key in ['prediction_result', 'top_features', 'inputs']:
     if key not in st.session_state:
         st.session_state[key] = None
 
+import os
+import uuid
+import datetime
+import qrcode
+import base64
+import csv
+from xhtml2pdf import pisa
+
 def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabetes Risk Predictor"):
     os.makedirs("reports", exist_ok=True)
     report_id = f"DIA-{uuid.uuid4().hex[:8].upper()}"
@@ -232,6 +240,15 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
                 margin-bottom: 20px;
                 background-color: #eef;
             }}
+            .block-label {{
+                display: inline-block;
+                padding: 4px 10px;
+                background-color: #dbeafe;
+                border: 1px solid #3b82f6;
+                border-radius: 5px;
+                font-weight: bold;
+                margin-bottom: 5px;
+            }}
             table {{
                 width: 100%;
                 border-collapse: collapse;
@@ -259,15 +276,17 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
         <h1>{pdf_labels['title']}</h1>
         <div class="header-line">{pdf_labels['report_id']}: {report_id} | {pdf_labels['date']}: {test_date}</div>
         <div class="info">
-            <p><strong>{pdf_labels['name']}:</strong> {patient_name}</p>
-            <p><strong>{pdf_labels['age']}:</strong> {patient_age}</p>
-            <p><strong>{pdf_labels['gender']}:</strong> {patient_gender}</p>
+            <p><span class="block-label">{pdf_labels['name']}:</span> {patient_name}</p>
+            <p><span class="block-label">{pdf_labels['age']}:</span> {patient_age}</p>
+            <p><span class="block-label">{pdf_labels['gender']}:</span> {patient_gender}</p>
         </div>
 
         <h2>{pdf_labels['input_section']}</h2>
         <table>{rows}</table>
 
-        <div class="risk">📊 {pdf_labels['risk']}: {risk_percent}% — {risk_text}</div>
+        <div class="risk">
+            <span class="block-label">📊 {pdf_labels['risk']}:</span> {risk_percent}% — {risk_text}
+        </div>
 
         <h2>{pdf_labels['top_factors']}</h2>
         <table>
