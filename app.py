@@ -120,22 +120,12 @@ LANGS = {
     }
 }
 
-# Load your trained models
-SCALER_PATH = "backend/models/scaler.pkl"
-MODEL_PATH = "backend/models/xgb_model.pkl"
+# Load model from JSON instead of pickle
+model = XGBClassifier()
+model.load_model("backend/models/xgb_model.json")
 
-scaler = joblib.load(SCALER_PATH)
-model = joblib.load(MODEL_PATH)
-
-# If model is wrapped in GridSearchCV, unwrap it
-if isinstance(model, GridSearchCV):
-    model = model.best_estimator_
-
-# Safety check
-assert isinstance(model, XGBClassifier), "❌ Loaded model is not an XGBClassifier!"
-
-
-# Create SHAP explainer at runtime — DO NOT LOAD FROM FILE
+# Load the scaler as usual
+scaler = joblib.load("backend/models/scaler.pkl")
 explainer = shap.Explainer(model)
 
 
