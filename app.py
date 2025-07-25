@@ -126,6 +126,14 @@ MODEL_PATH = "backend/models/xgb_model.pkl"
 scaler = joblib.load(SCALER_PATH)
 model = joblib.load(MODEL_PATH)
 
+# If model is wrapped in GridSearchCV, unwrap it
+if isinstance(model, GridSearchCV):
+    model = model.best_estimator_
+
+# Safety check
+assert isinstance(model, XGBClassifier), "❌ Loaded model is not an XGBClassifier!"
+
+
 # Create SHAP explainer at runtime — DO NOT LOAD FROM FILE
 explainer = shap.Explainer(model)
 
