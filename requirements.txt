@@ -47,7 +47,7 @@ pyparsing==3.2.3
 python-dateutil==2.9.0.post0
 pytz==2025.2
 referencing==0.36.2
-reportlab==4.4.1
+reportlab==3.6.12
 requests==2.32.3
 rpds-py==0.25.1
 scikit-learn==1.6.1
