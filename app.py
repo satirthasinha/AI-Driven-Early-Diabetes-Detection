@@ -12,6 +12,8 @@ import uuid
 import csv
 from PIL import Image
 import qrcode
+from xgboost import XGBClassifier
+import shap
 
 # Page configuration
 st.set_page_config(page_title="Diabetes Predictor", layout="wide", initial_sidebar_state="expanded")
@@ -118,15 +120,14 @@ LANGS = {
 }
 
 # Load your trained models
-# Load scaler, model (supports wrapper or raw), and SHAP explainer
 SCALER_PATH = "backend/models/scaler.pkl"
 MODEL_PATH = "backend/models/xgb_model.pkl"
-EXPLAINER_PATH = "backend/models/shap_explainer.pkl"
 
 scaler = joblib.load(SCALER_PATH)
-loaded_model = joblib.load(MODEL_PATH)
-model = getattr(loaded_model, "model", loaded_model)  # Works for both wrapper or raw
-explainer = joblib.load(EXPLAINER_PATH)
+model = joblib.load(MODEL_PATH)
+
+# Create SHAP explainer at runtime — DO NOT LOAD FROM FILE
+explainer = shap.Explainer(model)
 
 
 
