@@ -10,3 +10,4 @@ seaborn==0.13.2
 qrcode==7.4.2
 xhtml2pdf==0.2.10
 Pillow==11.2.1
+reportlab==3.6.12  
