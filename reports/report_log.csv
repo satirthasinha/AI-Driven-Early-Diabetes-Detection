@@ -1,0 +1,4 @@
+Report_ID,Date,Name,Age,Gender,Risk (%),Risk_Text
+DIA-DFDA9B19,2025-07-25,Anik,23,Male,4,✅ Low Risk of Diabetes
+DIA-7E516AB6,2025-07-25,Anik,23,Male,4,✅ কম ডায়াবেটিস ঝুঁকি
+DIA-4D788777,2025-07-25,Anik,44,Male,8,✅ কম ডায়াবেটিস ঝুঁকি
