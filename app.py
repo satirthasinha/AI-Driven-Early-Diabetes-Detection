@@ -118,14 +118,16 @@ LANGS = {
 }
 
 # Load your trained models
-# Load scaler, model, and SHAP explainer
+# Load scaler, model (supports wrapper or raw), and SHAP explainer
 SCALER_PATH = "backend/models/scaler.pkl"
 MODEL_PATH = "backend/models/xgb_model.pkl"
 EXPLAINER_PATH = "backend/models/shap_explainer.pkl"
 
 scaler = joblib.load(SCALER_PATH)
-model = joblib.load(MODEL_PATH)  # Assumes you've saved the raw XGBClassifier (not a wrapper)
+loaded_model = joblib.load(MODEL_PATH)
+model = getattr(loaded_model, "model", loaded_model)  # Works for both wrapper or raw
 explainer = joblib.load(EXPLAINER_PATH)
+
 
 
 # Language selection
