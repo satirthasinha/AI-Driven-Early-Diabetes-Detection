@@ -305,14 +305,20 @@ def download_link(filename):
 
 
 def plot_shap_bar_with_shap(input_scaled, shap_vals, feature_names):
+    import matplotlib.pyplot as plt
+
     expl = shap.Explanation(
         values=shap_vals[0],
         base_values=explainer.expected_value[1] if hasattr(explainer, "expected_value") else None,
         data=input_scaled[0],
         feature_names=feature_names,
     )
-    shap.plots.bar(expl, max_display=10)
-    st.pyplot(bbox_inches='tight')
+
+    plt.figure(figsize=(8, 6))
+    shap.plots.bar(expl, max_display=10, show=False)
+    st.pyplot(plt.gcf())  # Use current figure
+    plt.clf()  # Clear after rendering to prevent overlap
+
 
 # App layout
 st.title(T("title"))
