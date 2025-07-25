@@ -305,11 +305,9 @@ def download_link(filename):
 
 
 def plot_shap_bar_with_shap(input_scaled, shap_vals, feature_names):
-    import matplotlib.pyplot as plt
-
     expl = shap.Explanation(
         values=shap_vals[0],
-        base_values=explainer.expected_value[1] if hasattr(explainer, "expected_value") else explainer.expected_value,
+        base_values=explainer.expected_value[1] if isinstance(explainer.expected_value, (list, np.ndarray)) else explainer.expected_value,
         data=input_scaled[0],
         feature_names=feature_names,
     )
@@ -434,27 +432,24 @@ with tabs[0]:
 with tabs[1]:
     st.header(T("nav_shap"))
     if st.session_state['prediction_result'] is not None and st.session_state['inputs'] is not None:
-        # Prepare input for shap explainer
+        # Prepare input for SHAP explainer
         input_data = [st.session_state['inputs'][f] for f in features]
         input_array = np.array(input_data).reshape(1, -1)
         input_scaled = scaler.transform(input_array)
 
         shap_values = explainer.shap_values(input_scaled)
 
-        if isinstance(shap_values, list):
-            shap_vals = shap_values[1]
-        else:
-            shap_vals = shap_values
+        # Choose correct SHAP values if multiclass
+        shap_vals = shap_values[1] if isinstance(shap_values, list) else shap_values
 
         if shap_vals.ndim == 1:
             shap_vals_exp = shap_vals.reshape(1, -1)
         else:
             shap_vals_exp = shap_vals
 
-        # Features to exclude from SHAP plot
-        exclude_features = ["BMI_Category_Overweight", "BMI_Category_Normal", "BMI_Category_Obese", "Sum_of_Two_Features"]  # replace "Sum_of_Two_Features" with actual feature name if any
+        # Exclude categorical BMI one-hot columns and custom features if needed
+        exclude_features = ["BMI_Category_Overweight", "BMI_Category_Normal", "BMI_Category_Obese", "Sum_of_Two_Features"]
 
-        # Filter features and shap values
         filtered_features = []
         filtered_shap_vals = []
 
@@ -473,18 +468,20 @@ with tabs[1]:
                 base_values = explainer.expected_value
 
         expl = shap.Explanation(
-            values=filtered_shap_vals,
+            values=filtered_shap_vals[0],
             base_values=base_values,
-            data=input_scaled[:, [features.index(f) for f in filtered_features]],
+            data=input_scaled[:, [features.index(f) for f in filtered_features]][0],
             feature_names=filtered_features,
         )
 
-        fig, ax = plt.subplots(figsize=(8, 6))
-        shap.plots.bar(expl, max_display=10, ax=ax)
-        st.pyplot(fig)
+        plt.figure(figsize=(8, 6))
+        shap.plots.bar(expl, max_display=10, show=False)
+        st.pyplot(plt.gcf())
+        plt.clf()
 
     else:
         st.info(T("no_prediction"))
+
 
 
 
