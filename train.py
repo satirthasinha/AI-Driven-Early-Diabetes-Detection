@@ -23,7 +23,7 @@ df['BMI_Category'] = pd.cut(df['BMI'], bins=[0, 18.5, 24.9, 29.9, 100],
                             labels=['Underweight', 'Normal', 'Overweight', 'Obese'])
 df = pd.get_dummies(df, columns=['BMI_Category'], drop_first=True)
 
-# Features and target
+# =================== Prepare Features and Target ===================
 X = df.drop('Outcome', axis=1)
 y = df['Outcome']
 feature_names = X.columns.tolist()
@@ -38,9 +38,7 @@ scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
 
-# =================== Grid Search ===================
-cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
-
+# =================== Hyperparameter Grid ===================
 param_grid = {
     'n_estimators': [100, 200],
     'max_depth': [3, 5],
@@ -49,19 +47,16 @@ param_grid = {
     'reg_lambda': [1, 2]
 }
 
-def build_model(**params):
-    return XGBClassifier(
-        **params,
-        eval_metric='logloss',
-        scale_pos_weight=(y_train == 0).sum() / (y_train == 1).sum(),
-        random_state=42
-    )
+# =================== XGBoost Model for GridSearch ===================
+scale_pos_weight = (y_train == 0).sum() / (y_train == 1).sum()
 
 model = XGBClassifier(
     eval_metric='logloss',
-    scale_pos_weight=(y_train == 0).sum() / (y_train == 1).sum(),
+    scale_pos_weight=scale_pos_weight,
     random_state=42
 )
+
+cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
 
 grid = GridSearchCV(
     estimator=model,
@@ -72,6 +67,7 @@ grid = GridSearchCV(
     verbose=2
 )
 
+# =================== Train the Model ===================
 grid.fit(X_train_scaled, y_train)
 best_model = grid.best_estimator_
 
@@ -80,9 +76,9 @@ y_pred = best_model.predict(X_test_scaled)
 train_acc = accuracy_score(y_train, best_model.predict(X_train_scaled))
 test_acc = accuracy_score(y_test, y_pred)
 
-print(f"Train Accuracy: {train_acc * 100:.2f}%")
-print(f"Test Accuracy: {test_acc * 100:.2f}%")
-print("Classification Report:\n", classification_report(y_test, y_pred))
+print(f"✅ Train Accuracy: {train_acc * 100:.2f}%")
+print(f"✅ Test Accuracy: {test_acc * 100:.2f}%")
+print("✅ Classification Report:\n", classification_report(y_test, y_pred))
 
 # =================== Confusion Matrix ===================
 plt.figure(figsize=(6, 5))
@@ -166,9 +162,10 @@ plt.title("SHAP Dependence Plot - Glucose")
 plt.savefig('backend/plots/shap_dependence_glucose.png', bbox_inches='tight', dpi=300)
 plt.close()
 
-# =================== Save Trained Artifacts ===================
-joblib.dump(best_model, 'backend/models/xgb_model.pkl')         # ✅ Save native XGBClassifier
+# =================== Save Artifacts ===================
+joblib.dump(best_model, 'backend/models/xgb_model.pkl')
 joblib.dump(scaler, 'backend/models/scaler.pkl')
-# joblib.dump(explainer, 'backend/models/shap_explainer.pkl')  # Optional
+# Optional: Uncomment to save SHAP explainer if needed later
+joblib.dump(explainer, 'backend/models/shap_explainer.pkl')
 
-print("✅ Training complete. Model, scaler, SHAP explainer and all plots saved in 'backend/'")
+print("✅ Training complete. Model, scaler, SHAP explainability and plots saved in 'backend/'")
