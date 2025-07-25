@@ -226,10 +226,11 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
                 margin: 40px;
                 line-height: 1.6;
                 color: #222;
+                font-size: 16px;
             }}
             h1 {{
                 text-align: center;
-                font-size: 24px;
+                font-size: 26px;
             }}
             .header-line {{
                 text-align: center;
@@ -241,13 +242,8 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
                 background-color: #eef;
             }}
             .block-label {{
-                display: inline-block;
-                padding: 4px 10px;
-                background-color: #dbeafe;
-                border: 1px solid #3b82f6;
-                border-radius: 5px;
                 font-weight: bold;
-                margin-bottom: 5px;
+                font-size: 18px;
             }}
             table {{
                 width: 100%;
@@ -264,6 +260,7 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
                 padding: 10px;
                 font-weight: bold;
                 margin-top: 20px;
+                font-size: 18px;
             }}
             .qr-note {{
                 font-size: 12px;
@@ -321,7 +318,6 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
         os.remove(qr_path)
 
     return filepath
-
 
 
 def download_link(filename):
