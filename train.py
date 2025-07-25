@@ -9,7 +9,6 @@ import joblib
 from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, roc_curve, auc
-from sklearn.base import BaseEstimator, ClassifierMixin
 from xgboost import XGBClassifier
 
 # =================== Ensure Directories Exist ===================
@@ -24,6 +23,7 @@ df['BMI_Category'] = pd.cut(df['BMI'], bins=[0, 18.5, 24.9, 29.9, 100],
                             labels=['Underweight', 'Normal', 'Overweight', 'Obese'])
 df = pd.get_dummies(df, columns=['BMI_Category'], drop_first=True)
 
+# Features and target
 X = df.drop('Outcome', axis=1)
 y = df['Outcome']
 feature_names = X.columns.tolist()
@@ -38,51 +38,6 @@ scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
 
-# =================== Custom XGB Wrapper ===================
-class XGBWrapper(BaseEstimator, ClassifierMixin):
-    def __init__(self, n_estimators=100, max_depth=3, learning_rate=0.1, reg_alpha=0, reg_lambda=1):
-        self.n_estimators = n_estimators
-        self.max_depth = max_depth
-        self.learning_rate = learning_rate
-        self.reg_alpha = reg_alpha
-        self.reg_lambda = reg_lambda
-        self.model = None
-
-    def fit(self, X, y):
-        scale_pos_weight = (y == 0).sum() / (y == 1).sum()
-        self.model = XGBClassifier(
-            n_estimators=self.n_estimators,
-            max_depth=self.max_depth,
-            learning_rate=self.learning_rate,
-            reg_alpha=self.reg_alpha,
-            reg_lambda=self.reg_lambda,
-            eval_metric='logloss',
-            scale_pos_weight=scale_pos_weight,
-            random_state=42
-        )
-        self.model.fit(X, y)
-        return self
-
-    def predict(self, X):
-        return self.model.predict(X)
-
-    def predict_proba(self, X):
-        return self.model.predict_proba(X)
-
-    def get_params(self, deep=True):
-        return {
-            "n_estimators": self.n_estimators,
-            "max_depth": self.max_depth,
-            "learning_rate": self.learning_rate,
-            "reg_alpha": self.reg_alpha,
-            "reg_lambda": self.reg_lambda
-        }
-
-    def set_params(self, **params):
-        for key, value in params.items():
-            setattr(self, key, value)
-        return self
-
 # =================== Grid Search ===================
 cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
 
@@ -94,8 +49,22 @@ param_grid = {
     'reg_lambda': [1, 2]
 }
 
+def build_model(**params):
+    return XGBClassifier(
+        **params,
+        eval_metric='logloss',
+        scale_pos_weight=(y_train == 0).sum() / (y_train == 1).sum(),
+        random_state=42
+    )
+
+model = XGBClassifier(
+    eval_metric='logloss',
+    scale_pos_weight=(y_train == 0).sum() / (y_train == 1).sum(),
+    random_state=42
+)
+
 grid = GridSearchCV(
-    estimator=XGBWrapper(),
+    estimator=model,
     param_grid=param_grid,
     cv=cv,
     scoring='accuracy',
@@ -104,9 +73,7 @@ grid = GridSearchCV(
 )
 
 grid.fit(X_train_scaled, y_train)
-
-# Extract best raw XGBClassifier
-best_model = grid.best_estimator_.model
+best_model = grid.best_estimator_
 
 # =================== Evaluation ===================
 y_pred = best_model.predict(X_test_scaled)
@@ -200,7 +167,7 @@ plt.savefig('backend/plots/shap_dependence_glucose.png', bbox_inches='tight', dp
 plt.close()
 
 # =================== Save Trained Artifacts ===================
-joblib.dump(best_model, 'backend/models/xgb_model.pkl')
+joblib.dump(best_model, 'backend/models/xgb_model.pkl')         # ✅ Save native XGBClassifier
 joblib.dump(scaler, 'backend/models/scaler.pkl')
 # joblib.dump(explainer, 'backend/models/shap_explainer.pkl')  # Optional
 
