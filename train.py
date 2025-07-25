@@ -8,12 +8,9 @@ import joblib
 
 from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import (
-    classification_report, accuracy_score,
-    confusion_matrix, roc_curve, auc
-)
-from xgboost import XGBClassifier
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, roc_curve, auc
 from sklearn.base import BaseEstimator, ClassifierMixin
+from xgboost import XGBClassifier
 
 # =================== Ensure Directories Exist ===================
 os.makedirs("backend/plots", exist_ok=True)
@@ -42,12 +39,7 @@ scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
 
-# =================== XGBoost with Grid Search (No Early Stopping) ===================
-
-# StratifiedKFold for balanced splits
-cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
-
-# Custom wrapper to use in GridSearchCV without early stopping
+# =================== Custom XGBoost Wrapper ===================
 class XGBWrapper(BaseEstimator, ClassifierMixin):
     def __init__(self, n_estimators=100, max_depth=3, learning_rate=0.1, reg_alpha=0, reg_lambda=1):
         self.n_estimators = n_estimators
@@ -70,7 +62,6 @@ class XGBWrapper(BaseEstimator, ClassifierMixin):
             scale_pos_weight=scale_pos_weight,
             random_state=42
         )
-        # For simplicity, fit on all training data without early stopping (or do CV split here)
         self.model.fit(X, y)
         return self
 
@@ -80,12 +71,29 @@ class XGBWrapper(BaseEstimator, ClassifierMixin):
     def predict_proba(self, X):
         return self.model.predict_proba(X)
 
+    def get_params(self, deep=True):
+        return {
+            "n_estimators": self.n_estimators,
+            "max_depth": self.max_depth,
+            "learning_rate": self.learning_rate,
+            "reg_alpha": self.reg_alpha,
+            "reg_lambda": self.reg_lambda
+        }
+
+    def set_params(self, **params):
+        for key, value in params.items():
+            setattr(self, key, value)
+        return self
+
+# =================== Grid Search ===================
+cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+
 param_grid = {
-    'n_estimators': [100, 200, 300, 400, 500],
-    'max_depth': [3, 4, 5, 6, 7],
-    'learning_rate': [0.01, 0.05, 0.1],
-    'reg_alpha': [0, 0.1, 0.5],
-    'reg_lambda': [1, 1.5, 2]
+    'n_estimators': [100, 200],
+    'max_depth': [3, 5],
+    'learning_rate': [0.01, 0.1],
+    'reg_alpha': [0, 0.1],
+    'reg_lambda': [1, 2]
 }
 
 grid = GridSearchCV(
@@ -98,11 +106,10 @@ grid = GridSearchCV(
 )
 
 grid.fit(X_train_scaled, y_train)
-
 best_model = grid.best_estimator_.model
 y_pred = best_model.predict(X_test_scaled)
 
-# =================== Accuracy ===================
+# =================== Evaluation ===================
 train_acc = accuracy_score(y_train, best_model.predict(X_train_scaled))
 test_acc = accuracy_score(y_test, y_pred)
 
@@ -157,37 +164,17 @@ plt.title('Feature Correlation Heatmap')
 plt.savefig('backend/plots/correlation_heatmap.png')
 plt.close()
 
-# =================== GridSearch Heatmap (learning_rate = 0.01) ===================
-# Reshape CV scores: max_depth (3), n_estimators (3), learning_rate (3)
-results_df = pd.DataFrame(grid.cv_results_)
-
-filtered_results = results_df[
-    (results_df['param_learning_rate'] == 0.01) &
-    (results_df['param_reg_alpha'] == 0) &
-    (results_df['param_reg_lambda'] == 1)
-]
-
-heatmap_data = filtered_results.pivot(index='param_max_depth', columns='param_n_estimators', values='mean_test_score')
-
-plt.figure(figsize=(8, 6))
-sns.heatmap(heatmap_data, annot=True, cmap='viridis', fmt=".4f")
-plt.title('Grid Search Accuracy\n(learning_rate=0.01, reg_alpha=0, reg_lambda=1)')
-plt.xlabel('n_estimators')
-plt.ylabel('max_depth')
-plt.savefig('backend/plots/gridsearch_heatmap.png')
-plt.close()
-
 # =================== SHAP Explainability ===================
 explainer = shap.Explainer(best_model, feature_names=feature_names)
 shap_values = explainer(X_train_scaled)
 
-# SHAP summary plot
+# SHAP Summary Plot
 shap.summary_plot(shap_values, X_train, feature_names=feature_names, show=False)
 plt.title("SHAP Summary Plot")
 plt.savefig('backend/plots/shap_summary.png', bbox_inches='tight')
 plt.close()
 
-# SHAP bar plot
+# SHAP Bar Plot
 shap.plots.bar(
     shap.Explanation(
         values=shap_values.values,
@@ -201,7 +188,7 @@ plt.title("Top SHAP Features")
 plt.savefig('backend/plots/shap_bar.png', bbox_inches='tight')
 plt.close()
 
-# SHAP dependence plot for 'Glucose'
+# SHAP Dependence Plot
 shap.dependence_plot(
     'Glucose',
     shap_values.values,
@@ -213,7 +200,7 @@ plt.title("SHAP Dependence Plot - Glucose")
 plt.savefig('backend/plots/shap_dependence_glucose.png', bbox_inches='tight', dpi=300)
 plt.close()
 
-# =================== Save Model, Scaler, and Explainer ===================
+# =================== Save Trained Objects ===================
 joblib.dump(grid.best_estimator_, 'backend/models/xgb_model.pkl')
 joblib.dump(scaler, 'backend/models/scaler.pkl')
 joblib.dump(explainer, 'backend/models/shap_explainer.pkl')
