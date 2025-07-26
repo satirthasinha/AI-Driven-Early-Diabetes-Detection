@@ -389,7 +389,7 @@ def tab_admin():
 
     # === Constants ===
     ADMIN_INFO = "Reg. No : 2422228, M.Tech (CSE), NIT, Silchar"
-    ADMIN_PHOTO_PATH = os.path.join(os.path.dirname(__file__), "admin_photo.jpg")
+    ADMIN_PHOTO_PATH = os.path.join(os.path.dirname(__file__), "admin_photo.png")
     REPORTS_FOLDER = os.path.join(os.path.dirname(__file__), "reports")
     REPORT_CSV_PATH = os.path.join(REPORTS_FOLDER, "report_log.csv")
     FEEDBACK_CSV_PATH = os.path.join(os.path.dirname(__file__), "feedback", "feedback.csv")
