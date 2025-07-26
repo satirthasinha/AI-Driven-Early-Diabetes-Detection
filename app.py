@@ -22,7 +22,12 @@ st.set_page_config(page_title="Diabetes Predictor", layout="wide", initial_sideb
 # Font paths
 FONT_PATH_BN = "fonts/Noto Sans.ttf"
 FONT_PATH_EN = "fonts/DejaVu Sans.ttf"
-
+BASE_DIR = os.path.dirname(__file__)
+REPORT_CSV_PATH = os.path.join(BASE_DIR, "reports", "report_log.csv")
+FEEDBACK_CSV_PATH = os.path.join(BASE_DIR, "feedback", "feedback.csv")
+REPORTS_FOLDER = os.path.join(BASE_DIR, "reports")
+ADMIN_PHOTO_PATH = os.path.join(BASE_DIR, "admin_photo.jpg")
+ADMIN_INFO = "Reg. No : 2422228, M.Tech (CSE), NIT, Silchar"
 
 # Multilingual dictionary for UI & messages
 LANGS = {
@@ -34,6 +39,7 @@ LANGS = {
         "nav_health_tips": "Health Tips",
         "nav_pdf_report": "Download Report",
         "nav_feedback": "Feedback",
+        "Admin Panel": "অ্যাডমিন প্যানেল",
         "input_pregnancies": "Number of Pregnancies (optional)",
         "input_glucose": "Glucose Level",
         "input_blood_pressure": "Blood Pressure",
@@ -342,12 +348,213 @@ tabs = st.tabs([
     T("nav_shap"),
     T("nav_health_tips"),
     T("nav_pdf_report"),
-    T("nav_feedback")
+    T("nav_feedback"),
+    T("Admin Panel")
 ])
 
 features = ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 'Insulin',
             'BMI', 'DiabetesPedigreeFunction', 'Age',
             'BMI_Category_Normal', 'BMI_Category_Overweight', 'BMI_Category_Obese']
+
+def tab_admin():
+    import streamlit as st
+    import os, base64
+    import pandas as pd
+
+    # === Constants ===
+    ADMIN_INFO = "Reg. No : 2422228, M.Tech (CSE), NIT, Silchar"
+    ADMIN_PHOTO_PATH = os.path.join(os.path.dirname(__file__), "admin_photo.jpg")
+    REPORTS_FOLDER = os.path.join(os.path.dirname(__file__), "reports")
+    REPORT_CSV_PATH = os.path.join(REPORTS_FOLDER, "report_log.csv")
+    FEEDBACK_CSV_PATH = os.path.join(os.path.dirname(__file__), "feedback", "feedback.csv")
+
+    # === Session State Initialization ===
+    if "admin_password" not in st.session_state:
+        st.session_state.admin_password = "admin123"
+    if "admin_name" not in st.session_state:
+        st.session_state.admin_name = "Super Admin"
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
+    if "login_error" not in st.session_state:
+        st.session_state.login_error = False
+    if "reset_error" not in st.session_state:
+        st.session_state.reset_error = ""
+    if "reset_mode" not in st.session_state:
+        st.session_state.reset_mode = None
+
+
+
+
+    # === Utility Functions ===
+    def login(password):
+        st.session_state.logged_in = password == st.session_state.admin_password
+        st.session_state.login_error = not st.session_state.logged_in
+
+    def logout():
+        st.session_state.logged_in = False
+        st.session_state.login_error = False
+        st.session_state.reset_mode = None
+
+    def get_pdf_download_link(filepath):
+        if not os.path.exists(filepath):
+            return ""
+        with open(filepath, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+        filename = os.path.basename(filepath)
+        return f'<a href="data:application/pdf;base64,{b64}" download="{filename}">📥 Download PDF</a>'
+
+    def load_report_logs():
+        return pd.read_csv(REPORT_CSV_PATH) if os.path.exists(REPORT_CSV_PATH) else pd.DataFrame()
+
+    def load_feedback():
+        return pd.read_csv(FEEDBACK_CSV_PATH) if os.path.exists(FEEDBACK_CSV_PATH) else pd.DataFrame()
+
+    # === UI Header ===
+    st.title("🔒 Admin Panel")
+    if os.path.exists(ADMIN_PHOTO_PATH):
+        with open(ADMIN_PHOTO_PATH, "rb") as img_file:
+            img_base64 = base64.b64encode(img_file.read()).decode()
+    else:
+        img_base64 = ""
+
+    st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <img src="data:image/jpg;base64,{img_base64}" style="width:70px;height:70px;border-radius:50%;border:2px solid #555;" />
+            <div>
+                <h4 style="margin-bottom:0;">{st.session_state.admin_name}</h4>
+                <p style="margin-top:4px;color:gray;">{ADMIN_INFO}</p>
+            </div>
+        </div>
+        <hr style="margin-top:10px;margin-bottom:10px;">
+    """, unsafe_allow_html=True)
+
+    # === Main Login Block ===
+    if not st.session_state.logged_in and st.session_state.reset_mode is None:
+        password = st.text_input("Enter Admin Password", type="password")
+        if st.button("🔓 Login"):
+            login(password)
+            if st.session_state.logged_in:
+                st.success("✅ Login successful.")
+        if st.session_state.login_error:
+            st.error("❌ Incorrect password.")
+
+
+    # === Forgot/Reset Options ===
+    if st.session_state.reset_mode is None and not st.session_state.logged_in:
+        st.subheader("🔧 What do you want to do?")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔄 Reset Password"):
+                st.session_state.reset_mode = "password"
+                st.session_state.transition_flag = True
+        with col2:
+            if st.button("👤 Edit Admin Info"):
+                st.session_state.reset_mode = "info"
+                st.session_state.transition_flag = True
+
+    # === Reset Password Mode ===
+    if st.session_state.reset_mode == "password":
+        st.subheader("🔄 Reset Admin Password")
+        old = st.text_input("Old Password", type="password")
+        new1 = st.text_input("New Password", type="password")
+        new2 = st.text_input("Confirm New Password", type="password")
+
+        if st.button("🔁 Change Password"):
+            if old != st.session_state.admin_password:
+                st.session_state.reset_error = "❌ Old password is incorrect."
+            elif new1 != new2:
+                st.session_state.reset_error = "❌ Passwords do not match."
+            elif len(new1) < 6:
+                st.session_state.reset_error = "❌ Password must be at least 6 characters."
+            else:
+                st.session_state.admin_password = new1
+                st.success("✅ Password updated. Please login again.")
+                st.session_state.logged_in = False
+                st.session_state.reset_mode = None
+                st.session_state.reset_error = ""
+
+        if st.session_state.reset_error:
+            st.error(st.session_state.reset_error)
+
+        if st.button("🔙 Back", key="back_from_password_reset"):
+            st.session_state.reset_mode = None
+            st.session_state.logged_in = False
+
+    # === Admin Info Login First ===
+    if st.session_state.reset_mode == "info" and not st.session_state.logged_in:
+        st.subheader("🔐 Please login to edit admin info")
+        pw = st.text_input("Enter Password", type="password")
+        if st.button("🔓 Login to Edit Info"):
+            login(pw)
+            if st.session_state.logged_in:
+                st.success("✅ Login successful.")
+        if st.session_state.login_error:
+            st.error("❌ Incorrect password.")
+        if st.button("🔙 Back", key="back_from_info_login"):
+            st.session_state.reset_mode = None
+
+    # === Admin Info Edit After Login ===
+    if st.session_state.reset_mode == "info" and st.session_state.logged_in:
+        st.subheader("👤 Edit Admin Name & Photo")
+        new_name = st.text_input("New Admin Name", value=st.session_state.admin_name)
+        photo = st.file_uploader("Upload New Admin Photo", type=["jpg", "jpeg", "png"])
+
+        if st.button("✅ Update Info"):
+            if not new_name.strip():
+                st.error("❌ Admin name cannot be empty.")
+            else:
+                st.session_state.admin_name = new_name.strip()
+                if photo:
+                    with open(ADMIN_PHOTO_PATH, "wb") as f:
+                        f.write(photo.getbuffer())
+                    st.success("✅ Admin photo updated.")
+                st.success("✅ Info updated.")
+
+        if st.button("🔙 Back", key="back_from_info_edit"):
+            st.session_state.reset_mode = None
+            st.session_state.logged_in = False
+
+    # === Dashboard (Only After Login) ===
+    if st.session_state.logged_in and st.session_state.reset_mode is None:
+        st.sidebar.button("Logout", on_click=logout)
+        st.title("🛠️ Admin Management Dashboard")
+        tab = st.sidebar.radio("📁 Navigation", ["📄 Reports", "💬 Feedback"])
+
+        if tab == "📄 Reports":
+            st.subheader("📄 Generated Reports")
+            logs = load_report_logs()
+            if logs.empty:
+                st.info("No reports found.")
+            else:
+                for _, row in logs.iterrows():
+                    with st.expander(
+                            f"📄 {row.get('Report_ID', 'N/A')} — {row.get('Name', 'N/A')} ({row.get('Date', 'N/A')})"):
+                        st.markdown(f"""
+                            **🧑 Name:** {row.get('Name', 'N/A')}  
+                            **🎂 Age:** {row.get('Age', 'N/A')}  
+                            **⚥ Gender:** {row.get('Gender', 'N/A')}  
+                            **📊 Risk:** {row.get('Risk (%)', 'N/A')}% — {row.get('Risk_Text', 'N/A')}
+                        """)
+                        matched = next(
+                            (f for f in os.listdir(REPORTS_FOLDER) if row.get("Report_ID") in f and f.endswith(".pdf")),
+                            None)
+                        if matched:
+                            st.markdown(get_pdf_download_link(os.path.join(REPORTS_FOLDER, matched)),
+                                        unsafe_allow_html=True)
+                        else:
+                            st.warning("⚠️ PDF not found for this report.")
+                st.download_button("📥 Download All Logs CSV", logs.to_csv(index=False).encode("utf-8"),
+                                   "report_log.csv", "text/csv")
+
+        elif tab == "💬 Feedback":
+            st.subheader("💬 User Feedback")
+            feedback_df = load_feedback()
+            if feedback_df.empty:
+                st.info("No feedback submitted yet.")
+            else:
+                st.dataframe(feedback_df)
+                st.download_button("📥 Download Feedback CSV", feedback_df.to_csv(index=False).encode("utf-8"),
+                                   "feedback.csv", "text/csv")
 
 # Prediction tab
 with tabs[0]:
