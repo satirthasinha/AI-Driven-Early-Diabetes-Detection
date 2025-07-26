@@ -320,10 +320,36 @@ def generate_pdf(data, prediction_result, top_features, lang, app_title="Diabete
 
 
 def download_link(filename):
+    import os, base64
+
+    if not os.path.exists(filename):
+        return ""
+
     with open(filename, "rb") as f:
         b64 = base64.b64encode(f.read()).decode()
+
     download_name = os.path.basename(filename)
-    return f'<a href="data:application/octet-stream;base64,{b64}" download="{download_name}">📥 Download PDF Report</a>'
+
+    html = f"""
+        <a href="data:application/octet-stream;base64,{b64}"
+           download="{download_name}"
+           style="
+               display: inline-block;
+               padding: 10px 20px;
+               background-color: transparent;
+               color: #FF4B4B;  /* Streamlit red */
+               font-weight: bold;
+               text-align: center;
+               text-decoration: none;
+               border: 2px solid #FF4B4B;
+               border-radius: 8px;
+               font-size: 14px;
+               margin-top: 10px;
+           ">
+           📥 Download PDF Report
+        </a>
+    """
+    return html
 
 
 
@@ -760,3 +786,6 @@ with tabs[4]:
         df_updated.to_csv(feedback_file, index=False)
 
         st.success(T("feedback_thanks"))
+
+with tabs[5]:
+    tab_admin()
